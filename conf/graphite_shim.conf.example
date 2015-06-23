@@ -1,0 +1,61 @@
+# This needs to be in your server's config somewhere, probably
+# the main httpd.conf
+# NameVirtualHost *:80
+
+# This line also needs to be in your server's config.
+# LoadModule wsgi_module modules/mod_wsgi.so
+
+<IfModule !wsgi_module.c>
+    LoadModule wsgi_module modules/mod_wsgi.so
+</IfModule>
+
+# XXX You need to set this up!
+# Read http://code.google.com/p/modwsgi/wiki/ConfigurationDirectives#WSGISocketPrefix
+WSGISocketPrefix run/wsgi
+
+# NOTE: Do not forget to change the port number
+# here. And put the final URL of the shim in grafana's
+# config.js in place of graphite instance URL
+<VirtualHost *:9000>
+        # ServerName localhost
+        DocumentRoot "/opt/es-graphite-shim/"
+        ErrorLog /opt/es-graphite-shim/logs/error.log
+        CustomLog /opt/es-graphite-shim/logs/access.log common
+
+ 	Header set Access-Control-Allow-Origin "*"
+
+	Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+	Header set Access-Control-Allow-Headers "origin, authorization, accept"
+        
+	WSGIDaemonProcess es-graphite-shim python-path=/opt/es-graphite-shim/es-graphite-shim:/opt/rh/python33/root/lib/python3.3/site-packages/
+        WSGIProcessGroup es-graphite-shim
+        WSGIApplicationGroup %{GLOBAL}
+	WSGIImportScript /opt/es-graphite-shim/es-graphite-shim/es-graphite-shim/wsgi.py process-group=es-graphite-shim application-group=%{GLOBAL}	
+
+	WSGIScriptAlias / /opt/es-graphite-shim/es-graphite-shim/es-graphite-shim/wsgi.py
+	Alias /content/ /opt/es-graphite-shim/es-graphite-shim/templates/
+		
+	<Location "/content/">
+		  SetHandler None
+		  Order deny,allow
+		  Allow from all
+	</Location>
+
+
+	<Directory /opt/es-graphite-shim/es-graphite-shim/es-graphite-shim/>
+		<Files wsgi.py>
+		   	  Require all granted
+		</Files>
+	</Directory>
+
+    	<Directory /opt/es-graphite-shim/>
+        	   Options All
+        	   AllowOverride All
+        	   Require all granted
+	</Directory>
+
+	<Proxy http://localhost:9200>
+	       ProxySet connectiontimeout=5 timeout=90
+	</Proxy>
+
+</VirtualHost>

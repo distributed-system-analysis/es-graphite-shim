@@ -1,0 +1,100 @@
+# SPECIAL NOTE:
+# Stick to a PORT value and keep it constant throughout
+# the installation steps. (make sure it doesn't collide with
+# already running service on the same port.
+# Take port based on the ones allowed under SELinux Policy
+# to http. Check with following command:
+# $ sudo semanage port -l | grep http
+
+# Recommended: Take PORT as 9000 (it's pre-allotted to http).
+
+##########################################################
+# Install apache, mod_wsgi and configure it
+yum install httpd python-devel mod_wsgi
+# then add the following to httpd.conf:
+# Listen PORT
+
+# copy graphite_shim.conf to /etc/httpd/conf.d/ and add
+cp graphite_shim.conf.example /etc/httpd/conf.d/ 
+# and make sure the <VirtualHost *:PORT> is same as
+# defined for 'Listen' direction under httpd.conf
+# Also, check for following line in httpd.conf:
+# IncludeOptional conf.d/*.conf
+
+# under es-graphite-shim/ copy shim_local.cfg as shim.cfg
+# and fill necessary configurations
+
+# copy the following folders to /opt/es-graphite-shim/
+mkdir /opt/es-graphite-shim/
+mkdir /opt/es-graphite-shim/logs /opt/es-graphite-shim/storage
+cp -r es-graphite-shim/ /opt/es-graphite-shim/
+
+# Add virtual env in under /opt/es-graphite-shim/
+cd /opt/es-graphite-shim/
+virtualenv venv
+source venv/bin/activate
+
+# Install requirements
+pip install -r requirements.txt
+# (Optional) Deactivate venv
+deactivate
+
+#NOTE: example local config is given under:
+# /opt/es-graphite-shim/conf/local_settings_example.py
+# defaut: http://localhost:9200
+cp /opt/es-graphite-shim/conf/local_settings_example.py \
+   /opt/es-graphite-shim/es-graphite-shim/local_settings.py
+# After this, add your elasticsearch instance and other configurations
+# in /opt/es-graphite-shim/es-graphite-shim/local_settings.py
+#  - DB field is optional and is not used currently.
+#    provide the hostname as the host where the shim is to be installed.
+#  - the FRESH field is for an internal functionality. Let it remain as
+#    default value in example config.
+#  - Don't forget to modify SECRET_KEY field as well.
+#  - INDEX_PREFIX and DOC_TYPE are used to indicate the index name
+#    pattern. Its recommended to name your ES indices in a manner so that
+#    selecting them while querying becomes easier, so as to avoid
+#    querying all indices. The pattern here is:
+#    	      INDEX_PREFIX.DOC_TYPE-<unique index pattern here>
+#  - Add the FIELD name as the first metric parameter in the graphite based
+#    dot separated metric path.
+#    Example, if we have a metric path as: log1.value1.sub1..
+#    then the FIELD name would consider the field type of log1.
+#    This is used to query and provide info about first metric in grafana
+#    in dropdown list.
+
+# create log files
+touch /opt/es-graphite-shim/logs/error.log
+touch /opt/es-graphite-shim/logs/access.log
+
+# Optional: create django db and make sure you keep
+# the same password under DATABASE config in:
+# /opt/es-graphite-shim/es-graphite-shim/local_settings.py
+python /opt/es-graphite-shim/es-graphite-shim/manage.py syncdb
+
+# Go to /opt/es-graphite-shim/es-graphite-shim/es-graphite-shim/settings.py
+# set SECRET_KEY to a big random key
+# set ALLOWED_HOSTS to [ 'localhost', '<any other hostnames']
+# by default, it's set to '*'
+# set TIME_ZONE to you local time.
+
+# change ownership/SELinux policies of /opt/es-graphite-shim/
+chown -R apache:apache /opt/es-graphite-shim/
+semanage fcontext -a -t httpd_sys_rw_content_t  '/opt/es-graphite-shim(/.*)?'
+restorecon -v -R /opt/es-graphite-shim/
+restorecon -v -R /opt/es-graphite-shim/*
+
+# add ES to http port, so connections from 9200
+# aren't blocked by SELinux for httpd
+semanage port -a -t http_port_t -p tcp 9200
+
+# FIX ME: since SELinux blocks communications to port 9200 with httpd
+# disable selinux temporarily (will add a more decent step later)
+setenforce 0
+
+# restart the httpd server
+service httpd restart
+
+# in case you face errors, check the apache OR es-graphite-shim log files.
+# ultimately, don't forget to switch the 'graphite' URL
+# under config.json in the source of Grafana.

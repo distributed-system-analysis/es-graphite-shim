@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block title %}{{title}}{% endblock %}
+
+{% block error %}
+  <div>
+    <div>
+      <h4 align="center">{{ project_name }} - Internal Server Error</h4>
+    </div>
+    <div>
+      <p>We encountered an unexpected error processing your
+        {% if error.name %} {{ error.name }}{% endif %}{% if error %}:
+        {% if error.msg %}"{{ error.msg }}"{% else %}"{{ error }}"{% endif %}{% endif %}.
+        Please try again later.</p>
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends 'base.html' %}{% load staticfiles %}{% load static from staticfiles %}
+
+{% block content %}
+<div>
+  <ol>
+    <li><a href="{% url 'mapping' %}">Get Mapping</a> for all ES indices</li>
+    <li><a href="/render/?target={{metric_path}}&from={{epoch_from}}&until={{epoch_until}}&format=json">Render Data</a> for this query (click link to check out metric pattern)</li>
+    <li><a href="/metrics/find?query=*">Query all first metric types in DOT separated metric path</a> for all ES indices</li>
+  </ol>
+</div>
+{% endblock %}

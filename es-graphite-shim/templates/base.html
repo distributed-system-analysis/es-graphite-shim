@@ -1,0 +1,18 @@
+<!DOCTYPE HTML>{% load staticfiles %}{% load static from staticfiles %}
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>{% block title %}{{ title }}{% endblock %}</title>
+  </head>
+  <body>
+    <div>
+      <div>
+        <a href="{% url 'home' %}">{{ project_name }}</a>
+      </div>
+      {% block content %}{% endblock %}      
+    </div>
+
+    {% block error %}{% endblock %}
+  </body>
+</html>
